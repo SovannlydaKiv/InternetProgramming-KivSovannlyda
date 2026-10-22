@@ -1,38 +1,61 @@
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
-import EventList from "./components/EventList.vue";
-import { initialEvents } from "./data/events";
-import type { CampusEvent } from "./types";
+import { ref, computed, watch } from 'vue'
+import { initialEvents } from './data/events'
+import type { CampusEvent } from './types'
+import EventList from './components/EventList.vue'
 
-// A reactive copy of the hard-coded events
-const events = ref<CampusEvent[]>(initialEvents.map(e => ({ ...e })));
+// Import directly from initialEvents
+const events = ref<CampusEvent[]>(structuredClone(initialEvents))
+const myBookings = ref<number[]>([])
 
-// TODO 1: a ref `myBookings` holding the ids of the events I booked (one entry per seat)
-// TODO 2: a computed `bookingCount`
-
-// TODO 3: onBook(id): find the event; if it still has a seat,
-//         increase its `booked` and add the id to myBookings
-function onBook(id: number) {
-  console.log("book", id);
+// Bonus: Read saved bookings from localStorage on startup
+try {
+  const saved = localStorage.getItem('myBookings')
+  if (saved) {
+    const ids = JSON.parse(saved) as number[]
+    myBookings.value = ids
+    ids.forEach((id) => {
+      const match = events.value.find((e) => e.id === id)
+      if (match) match.booked++
+    })
+  }
+} catch (e) {
+  console.error('Failed to parse myBookings from localStorage', e)
 }
 
-// TODO 4 (bonus): keep my bookings after a page reload
-//   - watch myBookings and save it to localStorage (JSON.stringify)
-//   - read it back when the app starts, and add those seats to `booked`
+// Bonus: Watch myBookings and save to localStorage
+watch(
+  myBookings,
+  (newVal) => {
+    localStorage.setItem('myBookings', JSON.stringify(newVal))
+  },
+  { deep: true }
+)
+
+// Computed booking count and text matching App.test.ts
+const bookingCount = computed(() => myBookings.value.length)
+const bookingText = computed(() => {
+  return bookingCount.value === 1
+    ? 'You have booked 1 seat.'
+    : `You have booked ${bookingCount.value} seats.`
+})
+
+// Booking handler
+function onBook(id: number) {
+  const event = events.value.find((e) => e.id === id)
+  if (event && event.booked < event.capacity) {
+    event.booked++
+    myBookings.value.push(id)
+  }
+}
 </script>
 
 <template>
+  <header>
+    <h1>Campus Events</h1>
+    <p>{{ bookingText }}</p>
+  </header>
   <main>
-    <header>
-      <h1>Campus Events</h1>
-      <!-- TODO 5: show the real count ("1 seat" / "N seats") -->
-      <p class="mine">You have booked 0 seats.</p>
-    </header>
     <EventList :events="events" @book="onBook" />
   </main>
 </template>
-
-<style scoped>
-header { margin-bottom: 16px; }
-.mine { color: #6b7280; margin: 0; }
-</style>
