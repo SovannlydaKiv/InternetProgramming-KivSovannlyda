@@ -1,12 +1,29 @@
-import { computed, ref, type Ref } from "vue";
-import type { CampusEvent, Category } from "../types";
+import { ref, computed, unref } from "vue";
+import type { CampusEvent } from "../types";
 
-// TODO E1 (refactor): move the filtering logic from week 4's EventList.vue here,
-// so any page can reuse it. Return { search, category, visible }.
-// The test "filters the list with the search box" in EventsPage.test.ts checks it.
-export function useEventFilters(events: Ref<CampusEvent[]>) {
+export function useEventFilters(events: any) {
   const search = ref("");
-  const category = ref<Category | "all">("all");
-  const visible = computed(() => events.value);
+  const category = ref("");
+
+  const visible = computed(() => {
+    // unref() perfectly handles both Vue Refs and reactive Proxy arrays
+    const list = unref(events) || [];
+    const query = search.value.toLowerCase().trim();
+
+    return list.filter((e: CampusEvent) => {
+      // Fallback to empty strings to prevent crashes if a field is missing
+      const title = (e.title || "").toLowerCase();
+      const desc = (e.description || "").toLowerCase();
+      const loc = (e.location || "").toLowerCase();
+
+      // Search across all three text fields
+      const matchesSearch = title.includes(query) || desc.includes(query) || loc.includes(query);
+      
+      const matchesCategory = category.value === "" || e.category === category.value;
+
+      return matchesSearch && matchesCategory;
+    });
+  });
+
   return { search, category, visible };
 }

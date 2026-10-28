@@ -1,3 +1,4 @@
+import { getActivePinia } from "pinia";
 import { createRouter, createWebHistory, type RouterHistory } from "vue-router";
 import { useSessionStore } from "../stores/session";
 import EventsPage from "../pages/EventsPage.vue";
@@ -43,6 +44,9 @@ export function makeRouter(history: RouterHistory = createWebHistory()) {
   // If the route has meta.organiserOnly and the session is not an organiser,
   // redirect to { name: "events", query: { denied: "1" } }.
   router.beforeEach((to) => {
+    const pinia = getActivePinia();
+    if (!pinia) return;
+
     const session = useSessionStore();
     if (to.meta.organiserOnly && !session.isOrganiser) {
       return { name: "events", query: { denied: "1" } };

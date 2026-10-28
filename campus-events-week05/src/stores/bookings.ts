@@ -30,8 +30,28 @@ export const useBookingsStore = defineStore("bookings", () => {
   //      add the booking at the start of `bookings`. Return the booking.
   // Question: what goes wrong if step 2 succeeds and step 3 fails? (We fix this properly in week 7.)
   async function book(event: CampusEvent, input: BookingInput): Promise<Booking> {
-    void [event, input, seatsLeft, ApiError, eventsApi];
-    throw new Error("TODO D1: book() is not implemented");
+    // 1. Check if enough seats are left
+    if (input.seats > seatsLeft(event)) {
+      throw new ApiError(409, "Not enough seats left.");
+    }
+
+    // 2. Create the booking via POST
+    const createdBooking = await bookingsApi.create({
+      eventId: event.id,
+      name: input.name,
+      email: input.email,
+      seats: input.seats,
+      createdAt: new Date().toISOString(),
+    });
+
+    // 3. Update the event's booked count via PATCH
+    const updatedEvent = await eventsApi.setBooked(event.id, event.booked + input.seats);
+
+    // 4. Update the events store and insert the new booking locally
+    useEventsStore().replace(updatedEvent);
+    bookings.value.unshift(createdBooking);
+
+    return createdBooking;
   }
 
   async function cancel(booking: Booking) {
